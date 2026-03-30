@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <body>
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Civic App</h2>
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/report.html">Submit Report</a>
+      <button onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <h2>My Reports</h2>
+      </div>
+
+      <div class="cards">
+        <div class="card blue">Reports</div>
+        <div class="card green">Resolved</div>
+        <div class="card orange">Pending</div>
+      </div>
+
+      <div id="reports"></div>
+      <p id="message"></p>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+  ...
+
+    <script>
+      const user = requireAuth(["user"]);
+      const reportsEl = document.getElementById("reports");
+      const messageEl = document.getElementById("message");
+
+      async function loadMyReports() {
+        if (!user) return;
+        reportsEl.innerHTML = "";
+        messageEl.textContent = "";
+
+        try {
+          const response = await fetch(`${API_BASE}/api/reports/my`, {
+            headers: authHeaders()
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Failed to load reports");
+
+          if (data.length === 0) {
+            messageEl.textContent = "No reports submitted yet.";
+            return;
+          }
+
+          data.forEach((report) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `
+              <h3>${report.title}</h3>
+              <p><strong>Category:</strong> ${report.category}</p>
+              <p>${report.description}</p>
+              <p><strong>Status:</strong> ${report.status}</p>
+              <p class="small">Location: ${report.location.coordinates[1]}, ${report.location.coordinates[0]}</p>
+              ${report.image ? `<img src="${report.image}" alt="Report image" style="max-width: 250px;" />` : ""}
+            `;
+            reportsEl.appendChild(card);
+          });
+        } catch (error) {
+          messageEl.className = "error";
+          messageEl.textContent = error.message;
+        }
+      }
+
+      loadMyReports();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Submit Report</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <body>
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Civic App</h2>
+      <a href="/dashboard.html">Dashboard</a>
+      <button onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="main">
+      <h2>Submit Issue</h2>
+
+      <div class="form-container" style="margin:0;">
+        <form id="reportForm">
+          <input type="text" id="title" placeholder="Title" required />
+          <textarea id="description" placeholder="Description" required></textarea>
+          <input type="text" id="category" placeholder="Category" required />
+
+          <input type="file" id="image" accept="image/*" />
+
+          <input type="text" id="latitude" placeholder="Latitude" readonly required />
+          <input type="text" id="longitude" placeholder="Longitude" readonly required />
+
+          <button type="button" id="locationBtn">Use Current Location</button>
+          <button type="submit">Submit Report</button>
+
+          <p id="message"></p>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+  ...
+
+    <script>
+      const user = requireAuth(["user"]);
+      const messageEl = document.getElementById("message");
+      const locationBtn = document.getElementById("locationBtn");
+      const reportForm = document.getElementById("reportForm");
+
+      locationBtn.addEventListener("click", () => {
+        messageEl.textContent = "";
+        messageEl.className = "";
+
+        if (!navigator.geolocation) {
+          messageEl.className = "error";
+          messageEl.textContent = "Geolocation is not supported by your browser.";
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            document.getElementById("latitude").value = position.coords.latitude;
+            document.getElementById("longitude").value = position.coords.longitude;
+            messageEl.className = "success";
+            messageEl.textContent = "Location captured.";
+          },
+          (error) => {
+            messageEl.className = "error";
+            messageEl.textContent = `Location error: ${error.message}`;
+          }
+        );
+      });
+
+      reportForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!user) return;
+
+        messageEl.textContent = "";
+        messageEl.className = "";
+
+        const formData = new FormData();
+        formData.append("title", document.getElementById("title").value);
+        formData.append("description", document.getElementById("description").value);
+        formData.append("category", document.getElementById("category").value);
+        formData.append("latitude", document.getElementById("latitude").value);
+        formData.append("longitude", document.getElementById("longitude").value);
+
+        const imageFile = document.getElementById("image").files[0];
+        if (imageFile) {
+          formData.append("image", imageFile);
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/api/reports`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: formData
+          });
+
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Failed to submit report");
+
+          messageEl.className = "success";
+          messageEl.textContent = "Report submitted successfully.";
+          reportForm.reset();
+        } catch (error) {
+          messageEl.className = "error";
+          messageEl.textContent = error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

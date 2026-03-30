@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+   <body>
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Admin Panel</h2>
+      <a href="/dashboard.html">Dashboard</a>
+      <button onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="main">
+      <h2>All Reports</h2>
+      <div id="reports"></div>
+      <p id="message"></p>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+  ...
+
+    <script>
+      const admin = requireAuth(["admin"]);
+      const reportsEl = document.getElementById("reports");
+      const messageEl = document.getElementById("message");
+
+      async function updateStatus(reportId, status) {
+        try {
+          const response = await fetch(`${API_BASE}/api/reports/${reportId}/status`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders()
+            },
+            body: JSON.stringify({ status })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Status update failed");
+          loadAllReports();
+        } catch (error) {
+          messageEl.className = "error";
+          messageEl.textContent = error.message;
+        }
+      }
+
+      async function loadAllReports() {
+        if (!admin) return;
+        reportsEl.innerHTML = "";
+        messageEl.textContent = "";
+        messageEl.className = "";
+
+        try {
+          const response = await fetch(`${API_BASE}/api/reports`, {
+            headers: authHeaders()
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Failed to load reports");
+
+          if (data.length === 0) {
+            messageEl.textContent = "No reports available.";
+            return;
+          }
+
+          data.forEach((report) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `
+              <h3>${report.title}</h3>
+              <p><strong>User:</strong> ${report.user ? report.user.name : "Unknown"} (${report.user ? report.user.email : "-"})</p>
+              <p><strong>Category:</strong> ${report.category}</p>
+              <p>${report.description}</p>
+              <p><strong>Current Status:</strong> ${report.status}</p>
+              <p class="small">Location: ${report.location.coordinates[1]}, ${report.location.coordinates[0]}</p>
+              ${report.image ? `<img src="${report.image}" alt="Report image" style="max-width: 250px;" />` : ""}
+            `;
+
+            const select = document.createElement("select");
+            ["Submitted", "In Progress", "Resolved"].forEach((status) => {
+              const option = document.createElement("option");
+              option.value = status;
+              option.textContent = status;
+              if (status === report.status) option.selected = true;
+              select.appendChild(option);
+            });
+
+            const updateBtn = document.createElement("button");
+            updateBtn.textContent = "Update Status";
+            updateBtn.onclick = () => updateStatus(report._id, select.value);
+
+            card.appendChild(select);
+            card.appendChild(updateBtn);
+            reportsEl.appendChild(card);
+          });
+        } catch (error) {
+          messageEl.className = "error";
+          messageEl.textContent = error.message;
+        }
+      }
+
+      loadAllReports();
+    </script>
+  </body>
+</html>
