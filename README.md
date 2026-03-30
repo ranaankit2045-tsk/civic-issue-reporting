@@ -1,3 +1,4 @@
+
 # Civic Issue Reporting App (Core Features)
 
 A simple beginner-friendly full-stack web app to report civic issues.
@@ -70,3 +71,4 @@ Data in this fallback DB is temporary and resets when server restarts.
 
 By default, registered users are normal users.
 To create an admin quickly for testing, change that user's `role` to `admin` in MongoDB.
+
