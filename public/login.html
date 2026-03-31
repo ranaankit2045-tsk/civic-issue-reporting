@@ -1,68 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <div class="form-container">
-    <h2>Login</h2>
 
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Email" required />
-      <input type="password" id="password" placeholder="Password" required />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    /* register.css */
 
-      <button type="submit">Login</button>
-      <p id="message"></p>
-    </form>
+    body {
 
-    <p style="text-align:center; margin-top:10px;">
-      No account? <a href="/register.html">Register</a>
-    </p>
-  </div>
+      background: linear-gradient(135deg, #a1b4d2, #050505);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-  <script src="/app.js"></script>
-  
- 
-    <script>
-      const loginForm = document.getElementById("loginForm");
-      const messageEl = document.getElementById("message");
+    /* Main container */
+    .register-container {
+      background: rgba(255, 255, 255, 0.205);
+      padding: 30px 40px;
+      border-radius: 12px;
+      width: 350px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
 
-      loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        messageEl.textContent = "";
-        messageEl.className = "";
+    /* Heading */
+    .register-container h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
 
-        const body = {
-          email: document.getElementById("email").value,
-          password: document.getElementById("password").value
-        };
+    /* Input fields */
+    .register-container input {
+      background-color: rgba(255, 251, 251, 0.525);
+      color: #333;
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
 
-        try {
-          const response = await fetch(`${API_BASE}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
-          const data = await response.json();
+    /* Focus effect */
+    .register-container input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
 
-          if (!response.ok) throw new Error(data.message || "Login failed");
+    /* Button */
+    .register-container button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      background: #2548e7;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: 0.3s;
+    }
 
-          setAuth(data.token, data.user);
+    /* Button hover */
+    .register-container button:hover {
+      background: #5a67d8;
+    }
 
-          // Redirect based on role
-          if (data.user.role === "admin") {
-            window.location.href = "/admin.html";
-          } else {
-            window.location.href = "/dashboard.html";
-          }
-        } catch (error) {
-          messageEl.className = "error";
-          messageEl.textContent = error.message;
-        }
+    /* Login link */
+    .register-container p {
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    .register-container a {
+      color: #0b40f1;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .register-container a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <form class="register-container">
+    <h1>Login</h1>
+
+    <input type="email" placeholder="Email">
+    <input type="password" placeholder="Password">
+
+    <button type="submit">Login</button>
+
+    <p>Don't have an account? <a href="register.html">Register</a></p>
+  </form>
+</body>
+
+<script src="/app.js"></script>
+
+
+<script>
+  const loginForm = document.getElementById("loginForm");
+  const messageEl = document.getElementById("message");
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    messageEl.textContent = "";
+    messageEl.className = "";
+
+    const body = {
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value
+    };
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-    </script>
-  </body>
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Login failed");
+
+      setAuth(data.token, data.user);
+
+      // Redirect based on role
+      if (data.user.role === "admin") {
+        window.location.href = "/admin.html";
+      } else {
+        window.location.href = "/dashboard.html";
+      }
+    } catch (error) {
+      messageEl.className = "error";
+      messageEl.textContent = error.message;
+    }
+  });
+</script>
+</body>
+
 </html>
