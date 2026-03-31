@@ -6,9 +6,22 @@
   font-family: 'Segoe UI', sans-serif;
 }
 
+/* COMMON */
 body {
-  background: #f4f6f9;
-  color: #333;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #a1b4d2, #050505);
+}
+
+/* LOGIN / REGISTER PAGE */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* DASHBOARD / ADMIN PAGE */
+.dashboard-page {
+  display: block;
 }
 
 /* LAYOUT */
@@ -18,7 +31,7 @@ body {
 
 /* SIDEBAR */
 .sidebar {
-  width: 220px;
+  width: 200px;
   height: 100vh;
   background: #1e293b;
   color: white;
@@ -65,9 +78,10 @@ body {
 }
 
 .card {
-  background: white;
+  background: rgba(255, 255, 255, 0.265);
   color: #333;
   flex: 1;
+  margin-bottom: 10px;
   padding: 20px;
   border-radius: 10px;
   font-weight: bold;
@@ -92,7 +106,7 @@ body {
   width: 350px;
   margin: 80px auto;
   padding: 30px;
-  background: white;
+  background: rgba(255, 255, 255, 0.276);
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
@@ -103,6 +117,7 @@ body {
 }
 
 input, textarea {
+  background-color: rgba(255, 255, 255, 0.413);
   width: 100%;
   padding: 10px;
   margin: 10px 0;
@@ -112,14 +127,18 @@ input, textarea {
 
 /* BUTTON */
 button {
-  padding: 10px;
+  width: 70px;
+  margin-left:110px;
+  padding: 7px;
   border: none;
-  border-radius: 5px;
-  background: #3b82f6;
+  border-radius: 10px;
+  background: #1810fbd2;
   color: white;
   cursor: pointer;
+  
 }
 
 button:hover {
-  opacity: 0.9;
+
+  opacity: 0.8;
 }
