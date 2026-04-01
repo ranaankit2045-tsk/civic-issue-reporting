@@ -16,9 +16,9 @@
     </aside>
 
     <main class="main">
-      <h2>Submit Issue</h2>
+      <h2 style="margin-left: 475px;">Submit Issue</h2>
 
-      <div class="form-container" style="margin:0;">
+      <div class="form-container" style="margin-left:300px; margin-top: 30px; width: 500px;">
         <form id="reportForm">
           <input type="text" id="title" placeholder="Title" required />
           <textarea id="description" placeholder="Description" required></textarea>
@@ -29,8 +29,9 @@
           <input type="text" id="latitude" placeholder="Latitude" readonly required />
           <input type="text" id="longitude" placeholder="Longitude" readonly required />
 
-          <button type="button" id="locationBtn">Use Current Location</button>
-          <button type="submit">Submit Report</button>
+          <button type="button" id="locationBtn" style="background-color: rgb(0, 255, 68); width: 150px; margin-left: 150px;">Use Current Location</button>
+          <br><br>
+          <button type="submit" style="width: 150px; margin-left: 150px;">Submit Report</button>
 
           <p id="message"></p>
         </form>
