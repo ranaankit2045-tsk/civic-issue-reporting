@@ -6,6 +6,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
   <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    /* 🔥 ADMIN CARD DESIGN */
+
+    .admin-card {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .admin-header h3 {
+      font-size: 20px;
+    }
+
+    .status {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+
+    .status.Submitted { background: #ef4444; }
+    .status.In-Progress { background: #f59e0b; }
+    .status.Resolved { background: #10b981; }
+
+    .admin-body {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .admin-image img {
+      width: 180px;
+      height: 130px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .admin-details {
+      flex: 1;
+    }
+
+    .admin-details p {
+      margin: 6px 0;
+    }
+
+    .location {
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-top: 8px;
+    }
+
+    .admin-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+  </style>
 </head>
 
 <body class="dashboard-page">
@@ -28,6 +96,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+
       const session = JSON.parse(localStorage.getItem("user") || "null");
 
       if (!session || !session.id) {
@@ -78,30 +147,44 @@
           }
 
           data.forEach((report) => {
+
             const card = document.createElement("div");
-            card.className = "card";
+            card.className = "admin-card";
 
             const userLabel =
               report.user && typeof report.user === "object"
                 ? report.user.name + " (" + report.user.email + ")"
                 : report.user || "Unknown";
 
-            // 🔥 BASIC INFO (NO LAT/LNG HERE)
-            card.innerHTML =
-              "<h3>" + report.title + "</h3>" +
-              "<p><strong>User:</strong> " + userLabel + "</p>" +
-              "<p><strong>Category:</strong> " + report.category + "</p>" +
-              "<p>" + report.description + "</p>" +
-              "<p><strong>Current Status:</strong> " + report.status + "</p>" +
-              (report.image
-                ? "<img src=\"" + report.image + "\" style=\"max-width: 250px;\" />"
-                : "");
+            const statusClass = report.status.replace(" ", "-");
 
-            // 🔥 LOCATION (ADDRESS)
-            const locationEl = document.createElement("p");
-            locationEl.className = "small";
-            locationEl.textContent = "Location: Loading address...";
-            card.appendChild(locationEl);
+            // 🔥 STRUCTURED CARD
+            card.innerHTML = `
+              <div class="admin-header">
+                <h3>${report.title}</h3>
+                <span class="status ${statusClass}">
+                  ${report.status}
+                </span>
+              </div>
+
+              <div class="admin-body">
+
+                <div class="admin-image">
+                  ${report.image ? `<img src="${report.image}" />` : ""}
+                </div>
+
+                <div class="admin-details">
+                  <p><strong>User:</strong> ${userLabel}</p>
+                  <p><strong>Category:</strong> ${report.category}</p>
+                  <p>${report.description}</p>
+                  <p class="location">📍 Loading address...</p>
+                </div>
+
+              </div>
+            `;
+
+            // 🔥 LOCATION FETCH
+            const locationEl = card.querySelector(".location");
 
             const lat = report.location.coordinates[1];
             const lng = report.location.coordinates[0];
@@ -109,14 +192,13 @@
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
               .then(res => res.json())
               .then(data => {
-                locationEl.textContent =
-                  "Location: " + (data.display_name || "Address not found");
+                locationEl.textContent = "📍 " + (data.display_name || "Address not found");
               })
               .catch(() => {
-                locationEl.textContent = "Location: Unable to fetch address";
+                locationEl.textContent = "📍 Unable to fetch address";
               });
 
-            // 🔽 STATUS DROPDOWN
+            // 🔽 STATUS CONTROLS
             const select = document.createElement("select");
 
             ["Submitted", "In Progress", "Resolved"].forEach((status) => {
@@ -127,7 +209,6 @@
               select.appendChild(option);
             });
 
-            // 🔘 UPDATE BUTTON
             const updateBtn = document.createElement("button");
             updateBtn.className = "update-btn";
             updateBtn.textContent = "Update Status";
@@ -136,8 +217,13 @@
               updateStatus(report._id, select.value);
             };
 
-            card.appendChild(select);
-            card.appendChild(updateBtn);
+            const actions = document.createElement("div");
+            actions.className = "admin-actions";
+
+            actions.appendChild(select);
+            actions.appendChild(updateBtn);
+
+            card.appendChild(actions);
 
             reportsEl.appendChild(card);
           });
