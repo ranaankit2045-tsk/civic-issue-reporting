@@ -11,12 +11,12 @@ body {
   min-height: 100vh;
   background: linear-gradient(135deg, #a1b4d2, #050505);
 }
-
 /* LOGIN / REGISTER PAGE */
 .auth-page {
   display: flex;
   justify-content: center;
   align-items: center;
+
 }
 
 /* DASHBOARD / ADMIN PAGE */
@@ -132,10 +132,34 @@ button {
   padding: 7px;
   border: none;
   border-radius: 10px;
-  background: #1810fbd2;
+  background: #1d1d20d2;
   color: white;
   cursor: pointer;
-  
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.update-btn {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  width: 120px; /* change width here */
+  transition: 0.2s ease;
+}
+
+.update-btn:hover {
+  background-color: #2563eb;
+}
+
+.location-btn {
+  background-color: #184793;
+  margin: 10px auto;
+  padding: 10px 15px;
+  display: block;
+  width:200px;
 }
 
 button:hover {

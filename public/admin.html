@@ -1,18 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Panel</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body class="dashboard-page">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body class="dashboard-page">
   <div class="container">
     <aside class="sidebar">
-      <h2>Admin Panel</h2>
-      <a href="/dashboard.html">Dashboard</a>
-      <button onclick="logout()">Logout</button>
+      <h2>Civic App</h2>
+      <a href="#" onclick="goToDashboard(); return false;">Dashboard</a>
+      <a href="/report.html">Submit Report</a>
+      <button type="button" onclick="logout()">Logout</button>
     </aside>
 
     <main class="main">
@@ -23,25 +25,34 @@
   </div>
 
   <script src="/app.js"></script>
-  ...
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const session = JSON.parse(localStorage.getItem("user") || "null");
+      if (!session || !session.id) {
+        window.location.href = "/login.html";
+        return;
+      }
+      if (session.role !== "admin") {
+        window.location.href = "/dashboard.html";
+        return;
+      }
 
-    <script>
-      const admin = requireAuth(["admin"]);
       const reportsEl = document.getElementById("reports");
       const messageEl = document.getElementById("message");
 
       async function updateStatus(reportId, status) {
         try {
-          const response = await fetch(`${API_BASE}/api/reports/${reportId}/status`, {
+          const response = await fetch("/api/reports/" + reportId + "/status", {
             method: "PATCH",
             headers: {
-              "Content-Type": "application/json",
-              ...authHeaders()
+              "Content-Type": "application/json"
             },
             body: JSON.stringify({ status })
           });
+
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "Status update failed");
+
           loadAllReports();
         } catch (error) {
           messageEl.className = "error";
@@ -50,17 +61,17 @@
       }
 
       async function loadAllReports() {
-        if (!admin) return;
         reportsEl.innerHTML = "";
         messageEl.textContent = "";
         messageEl.className = "";
 
         try {
-          const response = await fetch(`${API_BASE}/api/reports`, {
-            headers: authHeaders()
-          });
+          const response = await fetch("/api/reports");
           const data = await response.json();
+
           if (!response.ok) throw new Error(data.message || "Failed to load reports");
+
+          console.log("[admin] /api/reports:", data);
 
           if (data.length === 0) {
             messageEl.textContent = "No reports available.";
@@ -70,15 +81,38 @@
           data.forEach((report) => {
             const card = document.createElement("div");
             card.className = "card";
-            card.innerHTML = `
-              <h3>${report.title}</h3>
-              <p><strong>User:</strong> ${report.user ? report.user.name : "Unknown"} (${report.user ? report.user.email : "-"})</p>
-              <p><strong>Category:</strong> ${report.category}</p>
-              <p>${report.description}</p>
-              <p><strong>Current Status:</strong> ${report.status}</p>
-              <p class="small">Location: ${report.location.coordinates[1]}, ${report.location.coordinates[0]}</p>
-              ${report.image ? `<img src="${report.image}" alt="Report image" style="max-width: 250px;" />` : ""}
-            `;
+
+            const userLabel =
+              report.user && typeof report.user === "object"
+                ? report.user.name + " (" + report.user.email + ")"
+                : report.user
+                  ? String(report.user)
+                  : "Unknown";
+
+            card.innerHTML =
+              "<h3>" +
+              report.title +
+              "</h3>" +
+              "<p><strong>User:</strong> " +
+              userLabel +
+              "</p>" +
+              "<p><strong>Category:</strong> " +
+              report.category +
+              "</p>" +
+              "<p>" +
+              report.description +
+              "</p>" +
+              "<p><strong>Current Status:</strong> " +
+              report.status +
+              "</p>" +
+              "<p class=\"small\">Location: " +
+              report.location.coordinates[1] +
+              ", " +
+              report.location.coordinates[0] +
+              "</p>" +
+              (report.image
+                ? "<img src=\"" + report.image + "\" style=\"max-width: 250px;\" />"
+                : "");
 
             const select = document.createElement("select");
             ["Submitted", "In Progress", "Resolved"].forEach((status) => {
@@ -90,8 +124,11 @@
             });
 
             const updateBtn = document.createElement("button");
+            updateBtn.className = "update-btn";
             updateBtn.textContent = "Update Status";
-            updateBtn.onclick = () => updateStatus(report._id, select.value);
+            updateBtn.onclick = function () {
+              updateStatus(report._id, select.value);
+            };
 
             card.appendChild(select);
             card.appendChild(updateBtn);
@@ -104,6 +141,8 @@
       }
 
       loadAllReports();
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

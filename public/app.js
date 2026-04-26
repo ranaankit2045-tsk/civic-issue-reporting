@@ -1,50 +1,37 @@
-const API_BASE = "";
-
-function getToken() {
-  return localStorage.getItem("token");
-}
-
 function getUser() {
-  const user = localStorage.getItem("user");
-  return user ? JSON.parse(user) : null;
+  const raw = localStorage.getItem("user");
+  return raw ? JSON.parse(raw) : null;
 }
 
-function setAuth(token, user) {
-  localStorage.setItem("token", token);
-  localStorage.setItem("user", JSON.stringify(user));
-}
-
-function clearAuth() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-}
-
-function authHeaders() {
-  const token = getToken();
-  return {
-    Authorization: `Bearer ${token}`
-  };
-}
-
-function requireAuth(allowedRoles = []) {
-  const token = getToken();
+function goToDashboard() {
   const user = getUser();
-
-  if (!token || !user) {
+  if (!user) {
     window.location.href = "/login.html";
-    return null;
+    return;
   }
-
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    // Role-based redirect
-    window.location.href = user.role === "admin" ? "/admin.html" : "/dashboard.html";
-    return null;
+  if (user.role === "admin") {
+    window.location.href = "/admin.html";
+  } else {
+    window.location.href = "/dashboard.html";
   }
-
-  return user;
 }
 
 function logout() {
-  clearAuth();
+  localStorage.removeItem("user");
   window.location.href = "/login.html";
+}
+
+/** Hide Submit Report for admins (matches a[href='/report.html']) */
+function setupSidebar() {
+  const user = getUser();
+  if (user?.role === "admin") {
+    const link = document.querySelector("a[href='/report.html']");
+    if (link) link.style.display = "none";
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupSidebar);
+} else {
+  setupSidebar();
 }

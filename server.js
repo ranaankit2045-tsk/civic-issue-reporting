@@ -22,19 +22,21 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
-
-// Prevent API calls before DB connects
-app.use("/api", (req, res, next) => {
-  if (req.path === "/health") return next();
-
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      message: "Database not connected yet. Try again in a few seconds."
-    });
-  }
-
-  next();
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
+// Prevent API calls before DB connects
+//app.use("/api", (req, res, next) => {
+//  if (req.path === "/health") return next();
+
+  //if (mongoose.connection.readyState !== 1) {
+    //return res.status(503).json({
+      //message: "Database not connected yet. Try again in a few seconds."
+    //});
+  //}
+
+  //next();
+//});
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -59,9 +61,9 @@ async function connectWithRetry() {
     }
 
     await mongoose.connect(MONGO_URI);
-    console.log("✅ MongoDB connected");
+    console.log("MongoDB connected");
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error.message);
+    console.error(" MongoDB connection error:", error.message);
     const isSrvDnsError =
       error?.message?.includes("querySrv") ||
       error?.message?.includes("ENOTFOUND") ||
@@ -74,10 +76,10 @@ async function connectWithRetry() {
         const memoryUri = memoryServer.getUri("civic_issues");
 
         await mongoose.connect(memoryUri);
-        console.log("✅ Connected to in-memory MongoDB");
+        console.log(" Connected to in-memory MongoDB");
         return;
       } catch (memoryError) {
-        console.error("❌ In-memory MongoDB fallback failed:", memoryError.message);
+        console.error(" In-memory MongoDB fallback failed:", memoryError.message);
       }
     }
 
@@ -103,7 +105,7 @@ process.on("SIGTERM", shutdown);
 function startListening(port) {
   if (port > PREFERRED_PORT + MAX_PORT_TRIES) {
     console.error(
-      `❌ No free port found between ${PREFERRED_PORT} and ${PREFERRED_PORT + MAX_PORT_TRIES}. Close other apps or set PORT in .env.`
+      ` No free port found between ${PREFERRED_PORT} and ${PREFERRED_PORT + MAX_PORT_TRIES}. Close other apps or set PORT in .env.`
     );
     process.exit(1);
   }
@@ -122,14 +124,14 @@ function startListening(port) {
       startListening(port + 1);
       return;
     }
-    console.error("❌ Server error:", err);
+    console.error(" Server error:", err);
     process.exit(1);
   });
 
   httpServer.listen(port, () => {
     httpServer.removeAllListeners("error");
     httpServer.on("error", (err) => {
-      console.error("❌ HTTP server error:", err);
+      console.error(" HTTP server error:", err);
     });
     console.log(`🚀 Server running on http://localhost:${port}`);
     connectWithRetry();

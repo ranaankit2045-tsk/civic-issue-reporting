@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
   
-    <body class="dashboard-page">
+</head>
+
+<body class="dashboard-page">
   <div class="container">
     <aside class="sidebar">
       <h2>Civic App</h2>
-      <a href="/dashboard.html">Dashboard</a>
+      <a href="#" onclick="goToDashboard(); return false;">Dashboard</a>
       <a href="/report.html">Submit Report</a>
-      <button onclick="logout()">Logout</button>
+      <button type="button" onclick="logout()">Logout</button>
     </aside>
 
     <main class="main">
@@ -22,9 +24,20 @@
       </div>
 
       <div class="cards">
-        <div class="card blue">Reports</div>
-        <div class="card green">Resolved</div>
-        <div class="card orange">Pending</div>
+        <div class="card blue">
+          <h3 id="totalReports">0</h3>
+          <p>Reports</p>
+        </div>
+
+        <div class="card green">
+          <h3 id="resolvedReports">0</h3>
+          <p>Resolved</p>
+        </div>
+
+        <div class="card orange">
+          <h3 id="pendingReports">0</h3>
+          <p>Pending</p>
+        </div>
       </div>
 
       <div id="reports"></div>
@@ -33,41 +46,110 @@
   </div>
 
   <script src="/app.js"></script>
-  ...
-
-    <script>
-      const user = requireAuth(["user"]);
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
       const reportsEl = document.getElementById("reports");
       const messageEl = document.getElementById("message");
 
+      async function deleteReport(id) {
+        try {
+          const response = await fetch("/api/reports/" + id, {
+            method: "DELETE"
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) throw new Error(data.message);
+
+          alert("Report deleted!");
+          loadMyReports();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+      function updateStats(myReports) {
+        const total = myReports.length;
+
+        const resolved = myReports.filter(r => r.status === "Resolved").length;
+
+        const pending = myReports.filter(r => r.status !== "Resolved").length;
+
+        document.getElementById("totalReports").textContent = total;
+        document.getElementById("resolvedReports").textContent = resolved;
+        document.getElementById("pendingReports").textContent = pending;
+      }
       async function loadMyReports() {
-        if (!user) return;
         reportsEl.innerHTML = "";
         messageEl.textContent = "";
+        messageEl.className = "";
+
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        if (!user || !user.id) {
+          window.location.href = "/login.html";
+          return;
+        }
+        if (user.role === "admin") {
+          window.location.href = "/admin.html";
+          return;
+        }
 
         try {
-          const response = await fetch(`${API_BASE}/api/reports/my`, {
-            headers: authHeaders()
-          });
+          const response = await fetch("/api/reports");
           const data = await response.json();
+
           if (!response.ok) throw new Error(data.message || "Failed to load reports");
 
-          if (data.length === 0) {
+          console.log("[dashboard] /api/reports:", data);
+
+          const myReports = data.filter((r) => {
+            const ownerId =
+              r.user && typeof r.user === "object" && r.user._id != null
+                ? r.user._id
+                : r.user;
+            return String(ownerId) === String(user?.id);
+          });
+          console.log("[dashboard] myReports count:", myReports.length);
+
+          updateStats(myReports);
+
+          if (myReports.length === 0) {
             messageEl.textContent = "No reports submitted yet.";
             return;
           }
 
-          data.forEach((report) => {
+          myReports.forEach((report) => {
             const card = document.createElement("div");
             card.className = "card";
-            card.innerHTML = `
-              <h3>${report.title}</h3>
-              <p><strong>Category:</strong> ${report.category}</p>
-              <p>${report.description}</p>
-              <p><strong>Status:</strong> ${report.status}</p>
-              <p class="small">Location: ${report.location.coordinates[1]}, ${report.location.coordinates[0]}</p>
-              ${report.image ? `<img src="${report.image}" alt="Report image" style="max-width: 250px;" />` : ""}
-            `;
+
+            card.innerHTML =
+              "<h3>" +
+              report.title +
+              "</h3>" +
+              "<p><strong>Category:</strong> " +
+              report.category +
+              "</p>" +
+              "<p>" +
+              report.description +
+              "</p>" +
+              "<p><strong>Status:</strong> " +
+              report.status +
+              "</p>" +
+              "<p class=\"small\">Location: " +
+              report.location.coordinates[1] +
+              ", " +
+              report.location.coordinates[0] +
+              "</p>" +
+              (report.image
+                ? "<img src=\"" + report.image + "\" style=\"max-width: 250px;\" />"
+                : "");
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Delete";
+            deleteBtn.onclick = function () {
+              deleteReport(report._id);
+            };
+
+            card.appendChild(deleteBtn);
             reportsEl.appendChild(card);
           });
         } catch (error) {
@@ -77,6 +159,8 @@
       }
 
       loadMyReports();
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

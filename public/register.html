@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Register</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body class="auth-page">
-    
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body class="auth-page">
+
   <div class="form-container">
     <h2>Register</h2>
 
@@ -26,40 +28,46 @@
   </div>
 
   <script src="/app.js"></script>
-  
-    <script>
-      const registerForm = document.getElementById("registerForm");
-      const messageEl = document.getElementById("message");
 
-      registerForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        messageEl.textContent = "";
-        messageEl.className = "";
+  <script>
+    const registerForm = document.getElementById("registerForm");
+    const messageEl = document.getElementById("message");
 
-        const body = {
-          name: document.getElementById("name").value,
-          email: document.getElementById("email").value,
-          password: document.getElementById("password").value
-        };
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageEl.textContent = "";
+      messageEl.className = "";
 
-        try {
-          const response = await fetch(`${API_BASE}/api/auth/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
-          const data = await response.json();
+      const body = {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value
+      };
 
-          if (!response.ok) throw new Error(data.message || "Registration failed");
+      try {
+        const response = await fetch(`/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
 
-          messageEl.className = "success";
-          messageEl.textContent = "Registration successful. Redirecting to login...";
-          setTimeout(() => (window.location.href = "/login.html"), 1200);
-        } catch (error) {
-          messageEl.className = "error";
-          messageEl.textContent = error.message;
-        }
-      });
-    </script>
-  </body>
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.message || "Registration failed");
+
+        messageEl.className = "success";
+        messageEl.textContent = "Registration successful. Redirecting to login...";
+
+        setTimeout(() => {
+          window.location.href = "/login.html";
+        }, 1200);
+
+      } catch (error) {
+        messageEl.className = "error";
+        messageEl.textContent = error.message;
+      }
+    });
+  </script>
+</body>
+
 </html>

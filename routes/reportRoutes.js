@@ -1,8 +1,9 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const mongoose = require("mongoose");
 const Report = require("../models/Report");
-const { protect, authorize } = require("../middleware/authMiddleware");
+
 
 const router = express.Router();
 
@@ -19,24 +20,36 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// POST /api/reports (protected)
-router.post("/", protect, upload.single("image"), async (req, res) => {
+// POST /api/reports (user id from body; session via localStorage on client)
+router.post("/", upload.single("image"), async (req, res) => {
   try {
-    const { title, description, category, latitude, longitude } = req.body;
+    const { title, description, category, latitude, longitude, userId } = req.body;
 
-    if (!title || !description || !category || !latitude || !longitude) {
-      return res.status(400).json({ message: "All required fields must be provided" });
+    if (!title || !description || !category || latitude === undefined || longitude === undefined || !userId) {
+      return res.status(400).json({
+        message: "All required fields must be provided (including location and userId)"
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return res.status(400).json({ message: "Latitude and longitude must be valid numbers" });
     }
 
     const report = await Report.create({
-      user: req.user.id,
+      user: userId,
       title,
       description,
       category,
       image: req.file ? `/uploads/${req.file.filename}` : "",
       location: {
         type: "Point",
-        coordinates: [Number(longitude), Number(latitude)]
+        coordinates: [lng, lat]
       },
       status: "Submitted"
     });
@@ -47,18 +60,8 @@ router.post("/", protect, upload.single("image"), async (req, res) => {
   }
 });
 
-// GET /api/reports/my (user)
-router.get("/my", protect, async (req, res) => {
-  try {
-    const reports = await Report.find({ user: req.user.id }).sort({ createdAt: -1 });
-    return res.json(reports);
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-});
-
 // GET /api/reports (admin)
-router.get("/", protect, authorize("admin"), async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const reports = await Report.find()
       .populate("user", "name email")
@@ -70,7 +73,7 @@ router.get("/", protect, authorize("admin"), async (req, res) => {
 });
 
 // PATCH /api/reports/:id/status (admin)
-router.patch("/:id/status", protect, authorize("admin"), async (req, res) => {
+router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
     const allowedStatuses = ["Submitted", "In Progress", "Resolved"];
@@ -92,6 +95,19 @@ router.patch("/:id/status", protect, authorize("admin"), async (req, res) => {
     return res.json({ message: "Report status updated", report: updatedReport });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+});
+router.delete("/:id", async (req, res) => {
+  try {
+    const report = await Report.findByIdAndDelete(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    res.json({ message: "Report deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

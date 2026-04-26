@@ -27,42 +27,45 @@
   
  
     <script>
-      const loginForm = document.getElementById("loginForm");
-      const messageEl = document.getElementById("message");
+  const loginForm = document.getElementById("loginForm");
+  const messageEl = document.getElementById("message");
 
-      loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        messageEl.textContent = "";
-        messageEl.className = "";
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    messageEl.textContent = "";
+    messageEl.className = "";
 
-        const body = {
-          email: document.getElementById("email").value,
-          password: document.getElementById("password").value
-        };
+    const body = {
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value
+    };
 
-        try {
-          const response = await fetch(`${API_BASE}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
-          const data = await response.json();
-
-          if (!response.ok) throw new Error(data.message || "Login failed");
-
-          setAuth(data.token, data.user);
-
-          // Redirect based on role
-          if (data.user.role === "admin") {
-            window.location.href = "/admin.html";
-          } else {
-            window.location.href = "/dashboard.html";
-          }
-        } catch (error) {
-          messageEl.className = "error";
-          messageEl.textContent = error.message;
-        }
+    try {
+      const response = await fetch(`/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-    </script>
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Login failed");
+
+      //  store user in localStorage (NO JWT)
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      //  redirect based on role
+      if (data.user.role === "admin") {
+        window.location.href = "/admin.html";
+      } else {
+        window.location.href = "/dashboard.html";
+      }
+
+    } catch (error) {
+      messageEl.className = "error";
+      messageEl.textContent = error.message;
+    }
+  });
+</script>
   </body>
 </html>
