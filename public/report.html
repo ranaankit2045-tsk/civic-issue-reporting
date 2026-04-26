@@ -5,7 +5,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submit Report</title>
+
   <link rel="stylesheet" href="/styles.css" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <!-- Geocoder -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 </head>
 
 <body>
@@ -18,31 +25,61 @@
     </aside>
 
     <main class="main">
-      <h2>Submit Issue</h2>
+      <h2 class="page-title">Submit Issue</h2>
 
-      <div class="form-container" style="margin:0;">
-        <form id="reportForm">
-          <input type="text" id="title" placeholder="Title" required />
-          <textarea id="description" placeholder="Description" required></textarea>
-          <input type="text" id="category" placeholder="Category" required />
+      <!-- 🔥 NEW LAYOUT -->
+      <div class="report-layout">
 
-          <input type="file" id="image" accept="image/*" />
+        <!-- LEFT: FORM -->
+        <div class="form-container" style="margin:0;">
+          <form id="reportForm">
+            <input type="text" id="title" placeholder="Title" required />
+            <textarea id="description" placeholder="Description" required></textarea>
+            <input type="text" id="category" placeholder="Category" required />
 
-          <input type="text" id="latitude" placeholder="Latitude" readonly required />
-          <input type="text" id="longitude" placeholder="Longitude" readonly required />
+            <input type="file" id="image" accept="image/*" />
 
-          <button type="button" id="locationBtn" class="location-btn">Use Current Location</button>
-          <button type="submit" class="location-btn" style="background-color: rgb(8, 84, 59);">Submit Report</button>
+            <button type="button" id="locationBtn" class="location-btn">
+              Use Current Location
+            </button>
 
-          <p id="message"></p>
-        </form>
+            <button type="button" id="mapBtn" class="location-btn" style="background-color: rgb(156, 70, 9);">
+              Choose Location on Map
+            </button>
+
+            <button type="submit" class="location-btn" style="background-color: rgb(8, 84, 59);">
+              Submit Report
+            </button>
+
+            <p id="message"></p>
+          </form>
+        </div>
+
+        <!-- RIGHT: MAP -->
+        <div id="mapContainer" style="flex:1; display:none;">
+          <div id="map" style="height:450px; border-radius:10px;"></div>
+        </div>
+
       </div>
     </main>
   </div>
 
   <script src="/app.js"></script>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Geocoder -->
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
   <script>
+    let selectedLat = null;
+    let selectedLng = null;
+    let map;
+    let marker;
+
     document.addEventListener("DOMContentLoaded", () => {
+
       const session = JSON.parse(localStorage.getItem("user") || "null");
       if (!session || !session.id) {
         window.location.href = "/login.html";
@@ -55,12 +92,12 @@
 
       const messageEl = document.getElementById("message");
       const locationBtn = document.getElementById("locationBtn");
+      const mapBtn = document.getElementById("mapBtn");
+      const mapContainer = document.getElementById("mapContainer");
       const reportForm = document.getElementById("reportForm");
 
+      // CURRENT LOCATION
       locationBtn.addEventListener("click", () => {
-        messageEl.textContent = "";
-        messageEl.className = "";
-
         if (!navigator.geolocation) {
           alert("Geolocation not supported");
           return;
@@ -68,11 +105,11 @@
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            console.log(position.coords);
-            document.getElementById("latitude").value = position.coords.latitude;
-            document.getElementById("longitude").value = position.coords.longitude;
+            selectedLat = position.coords.latitude;
+            selectedLng = position.coords.longitude;
+
             messageEl.className = "success";
-            messageEl.textContent = "Location captured.";
+            messageEl.textContent = "Location captured from device.";
           },
           (error) => {
             alert("Location error: " + error.message);
@@ -80,30 +117,96 @@
         );
       });
 
+      // MAP BUTTON
+      mapBtn.addEventListener("click", () => {
+
+        // ✅ SHOW RIGHT SIDE MAP
+        mapContainer.style.display = "block";
+
+        if (!map) {
+
+          map = L.map('map').setView([20.5937, 78.9629], 5);
+
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+          }).addTo(map);
+
+          // 🔥 FIX MAP RENDER
+          setTimeout(() => {
+            map.invalidateSize();
+          }, 100);
+
+          // SEARCH BAR
+          L.Control.geocoder({
+            defaultMarkGeocode: false
+          })
+          .on('markgeocode', function(e) {
+            const center = e.geocode.center;
+            map.setView(center, 14);
+          })
+          .addTo(map);
+
+          // AUTO LOCATION
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                map.setView([lat, lng], 15);
+
+                L.marker([lat, lng])
+                  .addTo(map)
+                  .bindPopup("You are here")
+                  .openPopup();
+              }
+            );
+          }
+
+          // CLICK TO SELECT
+          map.on("click", function (e) {
+
+            selectedLat = e.latlng.lat;
+            selectedLng = e.latlng.lng;
+
+            if (marker) {
+              map.removeLayer(marker);
+            }
+
+            marker = L.marker([selectedLat, selectedLng]).addTo(map);
+
+            messageEl.className = "success";
+            messageEl.textContent = "Location selected from map.";
+          });
+        }
+      });
+
+      // SUBMIT
       reportForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        messageEl.textContent = "";
-        messageEl.className = "";
-
         const user = JSON.parse(localStorage.getItem("user") || "null");
+
         if (!user?.id) {
           messageEl.className = "error";
-          messageEl.textContent = "You must be logged in to submit a report.";
+          messageEl.textContent = "You must be logged in.";
           return;
         }
 
-        const latVal = document.getElementById("latitude").value;
-        const lngVal = document.getElementById("longitude").value;
-        console.log("[submit] lat/lng:", latVal, lngVal, "userId:", user?.id);
+        if (selectedLat === null || selectedLng === null) {
+          messageEl.className = "error";
+          messageEl.textContent = "Please select a location.";
+          return;
+        }
 
         const formData = new FormData();
+
         formData.append("title", document.getElementById("title").value);
         formData.append("description", document.getElementById("description").value);
         formData.append("category", document.getElementById("category").value);
-        formData.append("latitude", latVal);
-        formData.append("longitude", lngVal);
-        formData.append("userId", user?.id);
+        formData.append("latitude", selectedLat);
+        formData.append("longitude", selectedLng);
+        formData.append("userId", user.id);
 
         const imageFile = document.getElementById("image").files[0];
         if (imageFile) {
@@ -118,18 +221,26 @@
 
           const data = await response.json();
 
-          if (!response.ok) throw new Error(data.message || "Failed to submit report");
+          if (!response.ok) throw new Error(data.message);
 
           messageEl.className = "success";
           messageEl.textContent = "Report submitted successfully.";
+
           reportForm.reset();
+          selectedLat = null;
+          selectedLng = null;
+
+          if (marker) {
+            map.removeLayer(marker);
+          }
+
         } catch (error) {
           messageEl.className = "error";
           messageEl.textContent = error.message;
         }
       });
+
     });
   </script>
 </body>
-
 </html>

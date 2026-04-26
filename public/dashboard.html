@@ -5,8 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard</title>
+
   <link rel="stylesheet" href="/styles.css" />
-  
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 
 <body class="dashboard-page">
@@ -38,18 +40,39 @@
           <h3 id="pendingReports">0</h3>
           <p>Pending</p>
         </div>
+       
       </div>
-
+      <h2 class="section-title">Issue Locations</h2>
+      <div id="map" style="height: 300px; width: 500px; margin-bottom:20px; border-radius:10px;">
+        
+      </div>
+      <h2 class="section-title">Recent Reports</h2>
       <div id="reports"></div>
       <p id="message"></p>
     </main>
   </div>
 
   <script src="/app.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+
       const reportsEl = document.getElementById("reports");
       const messageEl = document.getElementById("message");
+
+      const map = L.map('map', {
+  zoomControl: false,        // ❌ removes + / - buttons
+  scrollWheelZoom: false,    // ❌ mouse scroll zoom
+  doubleClickZoom: false,    // ❌ double click zoom
+  boxZoom: false,            // ❌ shift + drag zoom
+  keyboard: false,           // ❌ keyboard zoom
+  dragging: true             // ✅ still allow moving map (optional)
+}).setView([20.5937, 78.9629], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map);
 
       async function deleteReport(id) {
         try {
@@ -67,27 +90,27 @@
           alert(error.message);
         }
       }
+
       function updateStats(myReports) {
-        const total = myReports.length;
-
-        const resolved = myReports.filter(r => r.status === "Resolved").length;
-
-        const pending = myReports.filter(r => r.status !== "Resolved").length;
-
-        document.getElementById("totalReports").textContent = total;
-        document.getElementById("resolvedReports").textContent = resolved;
-        document.getElementById("pendingReports").textContent = pending;
+        document.getElementById("totalReports").textContent = myReports.length;
+        document.getElementById("resolvedReports").textContent =
+          myReports.filter(r => r.status === "Resolved").length;
+        document.getElementById("pendingReports").textContent =
+          myReports.filter(r => r.status !== "Resolved").length;
       }
+
       async function loadMyReports() {
         reportsEl.innerHTML = "";
         messageEl.textContent = "";
         messageEl.className = "";
 
         const user = JSON.parse(localStorage.getItem("user") || "null");
+
         if (!user || !user.id) {
           window.location.href = "/login.html";
           return;
         }
+
         if (user.role === "admin") {
           window.location.href = "/admin.html";
           return;
@@ -97,20 +120,21 @@
           const response = await fetch("/api/reports");
           const data = await response.json();
 
-          if (!response.ok) throw new Error(data.message || "Failed to load reports");
-
-          console.log("[dashboard] /api/reports:", data);
+          if (!response.ok) throw new Error(data.message);
 
           const myReports = data.filter((r) => {
             const ownerId =
-              r.user && typeof r.user === "object" && r.user._id != null
-                ? r.user._id
-                : r.user;
-            return String(ownerId) === String(user?.id);
+              r.user && typeof r.user === "object" ? r.user._id : r.user;
+            return String(ownerId) === String(user.id);
           });
-          console.log("[dashboard] myReports count:", myReports.length);
 
           updateStats(myReports);
+
+          map.eachLayer((layer) => {
+            if (layer instanceof L.CircleMarker) {
+              map.removeLayer(layer);
+            }
+          });
 
           if (myReports.length === 0) {
             messageEl.textContent = "No reports submitted yet.";
@@ -118,40 +142,60 @@
           }
 
           myReports.forEach((report) => {
+
+            const lat = report.location.coordinates[1];
+            const lng = report.location.coordinates[0];
+
+            let color = report.status === "Resolved" ? "green"
+                        : report.status === "In Progress" ? "orange"
+                        : "red";
+
+            L.circleMarker([lat, lng], { color, radius: 8 })
+              .addTo(map)
+              .bindPopup(`<b>${report.title}</b><br>${report.category}`);
+
             const card = document.createElement("div");
             card.className = "card";
 
+            // 🔥 BASIC INFO
             card.innerHTML =
-              "<h3>" +
-              report.title +
-              "</h3>" +
-              "<p><strong>Category:</strong> " +
-              report.category +
-              "</p>" +
-              "<p>" +
-              report.description +
-              "</p>" +
-              "<p><strong>Status:</strong> " +
-              report.status +
-              "</p>" +
-              "<p class=\"small\">Location: " +
-              report.location.coordinates[1] +
-              ", " +
-              report.location.coordinates[0] +
-              "</p>" +
+              "<h3>" + report.title + "</h3>" +
+              "<p><strong>Category:</strong> " + report.category + "</p>" +
+              "<p>" + report.description + "</p>" +
+              "<p><strong>Status:</strong> " + report.status + "</p>" +
               (report.image
-                ? "<img src=\"" + report.image + "\" style=\"max-width: 250px;\" />"
+                ? "<img src='" + report.image + "' style='max-width:250px;' />"
                 : "");
+
+            // 🔥 LOCATION (ADDRESS)
+            const locationEl = document.createElement("p");
+            locationEl.className = "small";
+            locationEl.textContent = "Location: Loading address...";
+            card.appendChild(locationEl);
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+              .then(res => res.json())
+              .then(data => {
+                locationEl.textContent = "Location: " + (data.display_name || "Address not found");
+              })
+              .catch(() => {
+                locationEl.textContent = "Location: Unable to fetch address";
+              });
 
             const deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Delete";
-            deleteBtn.onclick = function () {
-              deleteReport(report._id);
-            };
+            deleteBtn.onclick = () => deleteReport(report._id);
 
             card.appendChild(deleteBtn);
             reportsEl.appendChild(card);
           });
+
+          const first = myReports[0];
+          map.setView([
+            first.location.coordinates[1],
+            first.location.coordinates[0]
+          ], 12);
+
         } catch (error) {
           messageEl.className = "error";
           messageEl.textContent = error.message;
@@ -162,5 +206,4 @@
     });
   </script>
 </body>
-
 </html>
