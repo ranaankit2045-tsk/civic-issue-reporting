@@ -1,3 +1,4 @@
+const organization = require("../models/organization");
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -7,7 +8,7 @@ const Report = require("../models/Report");
 
 const router = express.Router();
 
-// Configure multer storage for local uploads folder
+// ================= MULTER CONFIG =================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -20,14 +21,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// POST /api/reports (user id from body; session via localStorage on client)
+// ================= CREATE REPORT =================
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { title, description, category, latitude, longitude, userId } = req.body;
 
     if (!title || !description || !category || latitude === undefined || longitude === undefined || !userId) {
       return res.status(400).json({
-        message: "All required fields must be provided (including location and userId)"
+        message: "All required fields must be provided"
       });
     }
 
@@ -37,9 +38,6 @@ router.post("/", upload.single("image"), async (req, res) => {
 
     const lat = Number(latitude);
     const lng = Number(longitude);
-    if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      return res.status(400).json({ message: "Latitude and longitude must be valid numbers" });
-    }
 
     const report = await Report.create({
       user: userId,
@@ -51,52 +49,139 @@ router.post("/", upload.single("image"), async (req, res) => {
         type: "Point",
         coordinates: [lng, lat]
       },
-      status: "Submitted"
+      status: "Submitted",
+      updates: [
+        { message: "Report submitted" }
+      ]
     });
 
-    return res.status(201).json({ message: "Report created successfully", report });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+    res.status(201).json({ report });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
-// GET /api/reports (admin)
+// ================= GET REPORTS =================
+// supports ?orgId= for NGO dashboard
 router.get("/", async (req, res) => {
   try {
-    const reports = await Report.find()
+    const { orgId } = req.query;
+
+    let query = {};
+
+    if (orgId && mongoose.Types.ObjectId.isValid(orgId)) {
+      query.assignedTo = orgId;
+    }
+
+    const reports = await Report.find(query)
       .populate("user", "name email")
+      .populate("assignedTo", "name")
       .sort({ createdAt: -1 });
-    return res.json(reports);
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+
+    res.json(reports);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
-// PATCH /api/reports/:id/status (admin)
+// ================= UPDATE STATUS =================
 router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ["Submitted", "In Progress", "Resolved"];
+    const allowed = ["Submitted", "In Progress", "Resolved"];
 
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
-    const updatedReport = await Report.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const report = await Report.findById(req.params.id);
 
-    if (!updatedReport) {
+    if (!report) {
       return res.status(404).json({ message: "Report not found" });
     }
 
-    return res.json({ message: "Report status updated", report: updatedReport });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+    report.status = status;
+
+    // 🔔 notification
+    report.updates.push({
+      message: `Status updated to ${status}`
+    });
+
+    await report.save();
+
+    res.json({ report });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
+
+// ================= ASSIGN ORGANIZATION =================
+router.patch("/:id/assign", async (req, res) => {
+  try {
+    const { assignedTo } = req.body;
+
+    if (assignedTo && !mongoose.Types.ObjectId.isValid(assignedTo)) {
+      return res.status(400).json({ message: "Invalid organization id" });
+    }
+
+    const report = await Report.findById(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    report.assignedTo = assignedTo || null;
+
+    // 🔔 notification
+    report.updates.push({
+      message: "Assigned to organization"
+    });
+
+    await report.save();
+
+    const populated = await Report.findById(report._id)
+      .populate("assignedTo", "name");
+
+    res.json({ report: populated });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= UPLOAD PROOF =================
+router.patch("/:id/proof", upload.single("image"), async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    report.proofImage = `/uploads/${req.file.filename}`;
+
+    // 🔔 notification
+    report.updates.push({
+      message: "Proof uploaded"
+    });
+
+    await report.save();
+
+    res.json({ report });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ================= DELETE =================
 router.delete("/:id", async (req, res) => {
   try {
     const report = await Report.findByIdAndDelete(req.params.id);
@@ -105,10 +190,22 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ message: "Report not found" });
     }
 
-    res.json({ message: "Report deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json({ message: "Deleted successfully" });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
+// GET all organizations
+router.get("/orgs", async (req, res) => {
+  try {
+    const Organization = require("../models/Organization");
 
+    const orgs = await Organization.find();
+    res.json(orgs);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 module.exports = router;

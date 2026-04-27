@@ -17,8 +17,15 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "organization"], // 🔥 added org role
       default: "user"
+    },
+
+    // 🔥 NEW: link user to organization
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null
     }
   },
   { timestamps: true }

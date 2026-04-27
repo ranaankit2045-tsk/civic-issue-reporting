@@ -1,14 +1,16 @@
+const organization = require("../models/organization");
 const express = require("express");
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
+ // ✅ IMPORTANT
 
 const router = express.Router();
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role, organizationName } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -19,13 +21,33 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Hash password before saving user
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    let orgId = null;
+
+    // 🔥 If registering as organization
+    if (role === "organization") {
+      if (!organizationName) {
+        return res.status(400).json({ message: "Organization name required" });
+      }
+
+      // Check if org exists
+      let org = await organization.findOne({ name: organizationName });
+
+      // If not → create it
+      if (!org) {
+        org = await organization.create({ name: organizationName });
+      }
+
+      orgId = org._id;
+    }
 
     const user = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role: role || "user",
+      organization: orgId
     });
 
     return res.status(201).json({
@@ -34,9 +56,11 @@ router.post("/register", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        organization: user.organization
       }
     });
+
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -61,24 +85,17 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Build token payload with user id and role
-    const payload = {
-      id: user._id,
-      role: user.role,
-      name: user.name
-    };
-
-    
-
     return res.json({
       message: "Login successful",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        organization: user.organization // 🔥 IMPORTANT
       }
     });
+
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

@@ -8,10 +8,8 @@
   <link rel="stylesheet" href="/styles.css" />
 
   <style>
-    /* 🔥 ADMIN CARD DESIGN */
-
     .admin-card {
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(10px);
       padding: 20px;
       border-radius: 14px;
@@ -24,10 +22,6 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 15px;
-    }
-
-    .admin-header h3 {
-      font-size: 20px;
     }
 
     .status {
@@ -53,36 +47,44 @@
       border-radius: 10px;
     }
 
-    .admin-details {
-      flex: 1;
-    }
-
-    .admin-details p {
-      margin: 6px 0;
-    }
+    .admin-details { flex: 1; }
+    .admin-details p { margin: 6px 0; }
 
     .location {
       font-size: 13px;
       color: #cbd5e1;
-      margin-top: 8px;
     }
 
     .admin-actions {
       margin-top: 10px;
       display: flex;
       gap: 10px;
-      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .update-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .update-btn:hover {
+      background: #2563eb;
     }
   </style>
 </head>
 
 <body class="dashboard-page">
   <div class="container">
+
     <aside class="sidebar">
       <h2>Civic App</h2>
       <a href="#" onclick="goToDashboard(); return false;">Dashboard</a>
       <a href="/report.html">Submit Report</a>
-      <button type="button" onclick="logout()">Logout</button>
+      <button onclick="logout()">Logout</button>
     </aside>
 
     <main class="main">
@@ -90,75 +92,103 @@
       <div id="reports"></div>
       <p id="message"></p>
     </main>
+
   </div>
 
   <script src="/app.js"></script>
 
   <script>
+    let ORGS = [];
+
+    async function loadOrgs() {
+      const res = await fetch("/api/reports/orgs");
+      ORGS = await res.json();
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
 
       const session = JSON.parse(localStorage.getItem("user") || "null");
 
-      if (!session || !session.id) {
-        window.location.href = "/login.html";
-        return;
-      }
-
-      if (session.role !== "admin") {
-        window.location.href = "/dashboard.html";
-        return;
-      }
+      if (!session?.id) return window.location.href = "/login.html";
+      if (session.role !== "admin") return window.location.href = "/dashboard.html";
 
       const reportsEl = document.getElementById("reports");
       const messageEl = document.getElementById("message");
 
-      async function updateStatus(reportId, status) {
+      async function updateStatus(reportId, status, card) {
         try {
-          const response = await fetch("/api/reports/" + reportId + "/status", {
+          const res = await fetch(`/api/reports/${reportId}/status`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status })
           });
 
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.message);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
 
-          loadAllReports();
-        } catch (error) {
+          const statusEl = card.querySelector(".status");
+          statusEl.textContent = status;
+          statusEl.className = "status " + status.replace(" ", "-");
+
+        } catch (err) {
           messageEl.className = "error";
-          messageEl.textContent = error.message;
+          messageEl.textContent = err.message;
+        }
+      }
+
+      async function assignReport(reportId, value, card, btn) {
+        try {
+          btn.disabled = true;
+
+          const res = await fetch(`/api/reports/${reportId}/assign`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assignedTo: value })
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
+
+          const text = card.querySelector(".assigned-text");
+          text.textContent = data.report.assignedTo?.name || "Unassigned";
+
+        } catch (err) {
+          messageEl.className = "error";
+          messageEl.textContent = err.message;
+        } finally {
+          btn.disabled = false;
         }
       }
 
       async function loadAllReports() {
+        await loadOrgs(); // 🔥 important
+
         reportsEl.innerHTML = "";
         messageEl.textContent = "";
-        messageEl.className = "";
 
         try {
-          const response = await fetch("/api/reports");
-          const data = await response.json();
+          const res = await fetch("/api/reports");
+          const data = await res.json();
 
-          if (!response.ok) throw new Error(data.message);
+          if (!res.ok) throw new Error(data.message);
 
-          if (data.length === 0) {
+          if (!data.length) {
             messageEl.textContent = "No reports available.";
             return;
           }
 
-          data.forEach((report) => {
+          data.forEach(report => {
 
             const card = document.createElement("div");
             card.className = "admin-card";
 
             const userLabel =
-              report.user && typeof report.user === "object"
-                ? report.user.name + " (" + report.user.email + ")"
+              typeof report.user === "object"
+                ? `${report.user.name} (${report.user.email})`
                 : report.user || "Unknown";
 
             const statusClass = report.status.replace(" ", "-");
 
-            // 🔥 STRUCTURED CARD
             card.innerHTML = `
               <div class="admin-header">
                 <h3>${report.title}</h3>
@@ -168,7 +198,6 @@
               </div>
 
               <div class="admin-body">
-
                 <div class="admin-image">
                   ${report.image ? `<img src="${report.image}" />` : ""}
                 </div>
@@ -177,66 +206,94 @@
                   <p><strong>User:</strong> ${userLabel}</p>
                   <p><strong>Category:</strong> ${report.category}</p>
                   <p>${report.description}</p>
-                  <p class="location">📍 Loading address...</p>
-                </div>
+                  <p class="location">📍 Loading...</p>
 
+                  <p>
+                    <strong>Assigned To:</strong>
+                    <span class="assigned-text">
+                      ${report.assignedTo?.name || "Unassigned"}
+                    </span>
+                  </p>
+                </div>
               </div>
             `;
 
-            // 🔥 LOCATION FETCH
-            const locationEl = card.querySelector(".location");
-
+            // 📍 LOCATION
+            const locEl = card.querySelector(".location");
             const lat = report.location.coordinates[1];
             const lng = report.location.coordinates[0];
 
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-              .then(res => res.json())
-              .then(data => {
-                locationEl.textContent = "📍 " + (data.display_name || "Address not found");
-              })
-              .catch(() => {
-                locationEl.textContent = "📍 Unable to fetch address";
-              });
+              .then(r => r.json())
+              .then(d => locEl.textContent = "📍 " + (d.display_name || "Not found"))
+              .catch(() => locEl.textContent = "📍 Error");
 
-            // 🔽 STATUS CONTROLS
-            const select = document.createElement("select");
+            // 🔽 STATUS
+            const statusSelect = document.createElement("select");
 
-            ["Submitted", "In Progress", "Resolved"].forEach((status) => {
-              const option = document.createElement("option");
-              option.value = status;
-              option.textContent = status;
-              if (status === report.status) option.selected = true;
-              select.appendChild(option);
+            ["Submitted", "In Progress", "Resolved"].forEach(s => {
+              const opt = document.createElement("option");
+              opt.value = s;
+              opt.textContent = s;
+              if (s === report.status) opt.selected = true;
+              statusSelect.appendChild(opt);
             });
 
-            const updateBtn = document.createElement("button");
-            updateBtn.className = "update-btn";
-            updateBtn.textContent = "Update Status";
+            const statusBtn = document.createElement("button");
+            statusBtn.textContent = "Update";
+            statusBtn.className = "update-btn";
 
-            updateBtn.onclick = () => {
-              updateStatus(report._id, select.value);
-            };
+            statusBtn.onclick = () =>
+              updateStatus(report._id, statusSelect.value, card);
+
+            // 🔽 ASSIGN
+            const assignSelect = document.createElement("select");
+
+            const defaultOpt = document.createElement("option");
+            defaultOpt.value = "";
+            defaultOpt.textContent = "Unassigned";
+            assignSelect.appendChild(defaultOpt);
+
+            ORGS.forEach(org => {
+              const opt = document.createElement("option");
+              opt.value = org._id;
+              opt.textContent = org.name;
+
+              if (report.assignedTo && report.assignedTo._id === org._id) {
+                opt.selected = true;
+              }
+
+              assignSelect.appendChild(opt);
+            });
+
+            const assignBtn = document.createElement("button");
+            assignBtn.textContent = "Assign";
+            assignBtn.className = "update-btn";
+
+            assignBtn.onclick = () =>
+              assignReport(report._id, assignSelect.value, card, assignBtn);
 
             const actions = document.createElement("div");
             actions.className = "admin-actions";
 
-            actions.appendChild(select);
-            actions.appendChild(updateBtn);
+            actions.appendChild(statusSelect);
+            actions.appendChild(statusBtn);
+            actions.appendChild(assignSelect);
+            actions.appendChild(assignBtn);
 
             card.appendChild(actions);
-
             reportsEl.appendChild(card);
           });
 
-        } catch (error) {
+        } catch (err) {
           messageEl.className = "error";
-          messageEl.textContent = error.message;
+          messageEl.textContent = err.message;
         }
       }
 
       loadAllReports();
     });
   </script>
-</body>
 
+</body>
 </html>

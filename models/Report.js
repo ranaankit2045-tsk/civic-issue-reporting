@@ -37,12 +37,36 @@ const reportSchema = new mongoose.Schema(
       type: String,
       enum: ["Submitted", "In Progress", "Resolved"],
       default: "Submitted"
-    }
+    },
+
+    // 🔥 UPDATED: now references Organization
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null
+    },
+
+    // 🔥 NEW: proof image uploaded by organization
+    proofImage: {
+      type: String
+    },
+
+    // 🔥 NEW: notifications / history log
+    updates: [
+      {
+        message: String,
+        timestamp: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ]
+
   },
   { timestamps: true }
 );
 
-// Geospatial index for location queries if needed later
+// Geospatial index
 reportSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Report", reportSchema);

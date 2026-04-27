@@ -8,7 +8,9 @@
   </head>
   <body class="auth-page">
     <div class="login-container">
-    <h2>Login</h2>
+
+    <h3>CIVIC REPORTING PLATFORM</h3>
+    <h4>Login</h4>
 
     <form id="loginForm">
       <input type="email" id="email" placeholder="Email" required />
@@ -28,7 +30,7 @@
   <script src="/app.js"></script>
   
  
-    <script>
+<script>
   const loginForm = document.getElementById("loginForm");
   const messageEl = document.getElementById("message");
 
@@ -53,13 +55,16 @@
 
       if (!response.ok) throw new Error(data.message || "Login failed");
 
-      //  store user in localStorage (NO JWT)
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      //  redirect based on role
+      // 🔥 FIXED REDIRECT LOGIC
       if (data.user.role === "admin") {
         window.location.href = "/admin.html";
-      } else {
+      } 
+      else if (data.user.role === "organization") {
+        window.location.href = "/org.html";
+      } 
+      else {
         window.location.href = "/dashboard.html";
       }
 

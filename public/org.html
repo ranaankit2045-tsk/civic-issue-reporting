@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Organization Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body class="dashboard-page">
+
+<div class="container">
+
+  <aside class="sidebar">
+    <h2>Org Panel</h2>
+    <a href="#" onclick="goToDashboard(); return false;">Dashboard</a>
+    <button onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <h2 class="page-title">Assigned Reports</h2>
+
+    <!-- 📊 STATS -->
+    <div class="cards">
+      <div class="card blue">
+        <h3 id="total">0</h3>
+        <p>Total</p>
+      </div>
+
+      <div class="card green">
+        <h3 id="resolved">0</h3>
+        <p>Resolved</p>
+      </div>
+
+      <div class="card orange">
+        <h3 id="pending">0</h3>
+        <p>Pending</p>
+      </div>
+    </div>
+
+    <div id="reports"></div>
+    <p id="message"></p>
+
+  </main>
+</div>
+
+<script src="/app.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  if (!user || user.role !== "organization") {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  const reportsEl = document.getElementById("reports");
+
+  // FETCH ONLY ASSIGNED REPORTS
+  const res = await fetch("/api/reports?orgId=" + user.organization);
+  const reports = await res.json();
+
+  // 📊 STATS
+  document.getElementById("total").textContent = reports.length;
+  document.getElementById("resolved").textContent =
+    reports.filter(r => r.status === "Resolved").length;
+  document.getElementById("pending").textContent =
+    reports.filter(r => r.status !== "Resolved").length;
+
+  reports.forEach(report => {
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <h3>${report.title}</h3>
+
+      <p><strong>Category:</strong> ${report.category}</p>
+      <p>${report.description}</p>
+
+      <p><strong>Status:</strong> ${report.status}</p>
+
+      ${
+        report.image
+          ? `<img src="${report.image}" style="width:150px; border-radius:8px;">`
+          : ""
+      }
+
+      <div style="margin-top:10px;">
+        <select>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+
+        <button>Update Status</button>
+      </div>
+
+      <div style="margin-top:10px;">
+        <input type="file">
+        <button>Upload Proof</button>
+      </div>
+
+      ${
+        report.proofImage
+          ? `<p><strong>Proof:</strong></p>
+             <img src="${report.proofImage}" style="width:120px;">`
+          : ""
+      }
+    `;
+
+    // STATUS UPDATE
+    const select = card.querySelector("select");
+    const updateBtn = card.querySelectorAll("button")[0];
+
+    updateBtn.onclick = async () => {
+      await fetch("/api/reports/" + report._id + "/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: select.value })
+      });
+
+      location.reload();
+    };
+
+    // PROOF UPLOAD
+    const fileInput = card.querySelector("input");
+    const uploadBtn = card.querySelectorAll("button")[1];
+
+    uploadBtn.onclick = async () => {
+      const file = fileInput.files[0];
+      if (!file) return alert("Select file first");
+
+      const form = new FormData();
+      form.append("image", file);
+
+      await fetch("/api/reports/" + report._id + "/proof", {
+        method: "PATCH",
+        body: form
+      });
+
+      location.reload();
+    };
+
+    reportsEl.appendChild(card);
+  });
+
+});
+</script>
+
+</body>
+</html>
